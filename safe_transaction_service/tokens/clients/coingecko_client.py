@@ -31,6 +31,8 @@ class CoingeckoClient:
             self.asset_platform = "optimistic-ethereum"
         elif network == EthereumNetwork.XDAI:
             self.asset_platform = "xdai"
+        elif network == EthereumNetwork.VELAS_MAINNET:
+            self.asset_platform = "velas"
         else:
             self.asset_platform = "ethereum"
 
@@ -104,3 +106,6 @@ class CoingeckoClient:
 
     def get_gather_usd_price(self) -> float:
         return self.get_price("gather")
+
+    def get_velas_usd_price(self) -> float:
+        return self.get_price("velas")
