@@ -218,10 +218,6 @@ MASTER_COPIES: Dict[EthereumNetwork, List[Tuple[str, int, str]]] = {
         ("0xfb1bffC9d739B8D520DaF37dF666da4C687191EA", 28387750, "1.3.0+L2"),
         ("0x69f4D1788e39c87893C980c06EdF4b7f686e2938", 28384561, "1.3.0"),
     ],
-    EthereumNetwork.VELAS_TESTNET: [
-        ("0xfb1bffC9d739B8D520DaF37dF666da4C687191EA", 2387932, "1.3.0+L2"),
-        ("0x69f4D1788e39c87893C980c06EdF4b7f686e2938", 2387953, "1.3.0"),
-    ],
     EthereumNetwork.FUSE_MAINNET: [
         ("0x3E5c63644E683549055b9Be8653de26E0B4CD36E", 12_725_078, "1.3.0+L2"),
         ("0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552", 12_725_081, "1.3.0"),
@@ -327,9 +323,6 @@ PROXY_FACTORIES: Dict[EthereumNetwork, List[Tuple[str, int]]] = {
     ],
     EthereumNetwork.VELAS_MAINNET: [
         ("0xC22834581EbC8527d974F8a1c97E1bEA4EF910BC", 28388112),  # v1.3.0
-    ],
-    EthereumNetwork.VELAS_TESTNET: [
-        ("0xC22834581EbC8527d974F8a1c97E1bEA4EF910BC", 2387929),  # v1.3.0
     ],
     EthereumNetwork.FUSE_MAINNET: [
         ("0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2", 12_725_072),  # v1.3.0
