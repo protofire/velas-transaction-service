@@ -987,9 +987,11 @@ class SafeInfoView(GenericAPIView):
         if not SafeContract.objects.filter(address=address).exists():
             return Response(status=status.HTTP_404_NOT_FOUND)
 
+        print("views.py LOG", SafeServiceProvider().get_safe_info(address))
         try:
             safe_info = SafeServiceProvider().get_safe_info(address)
             serializer = self.get_serializer(safe_info)
+            print("views.py LOG", serializer)
             return Response(status=status.HTTP_200_OK, data=serializer.data)
         except CannotGetSafeInfo:
             return Response(
