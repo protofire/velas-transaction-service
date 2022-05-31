@@ -43,8 +43,8 @@ from .models import (
     MultisigTransaction,
     SafeContract,
     SafeContractDelegate,
+    SafeLastStatus,
     SafeMasterCopy,
-    SafeStatus,
     TransferDict,
 )
 from .serializers import get_data_decoded_from_data
@@ -86,6 +86,7 @@ class AboutView(APIView):
                 "ETH_EVENTS_QUERY_CHUNK_SIZE": settings.ETH_EVENTS_QUERY_CHUNK_SIZE,
                 "ETH_EVENTS_UPDATED_BLOCK_BEHIND": settings.ETH_EVENTS_UPDATED_BLOCK_BEHIND,
                 "ETH_INTERNAL_NO_FILTER": settings.ETH_INTERNAL_NO_FILTER,
+                "ETH_INTERNAL_TRACE_TXS_BATCH_SIZE": settings.ETH_INTERNAL_TRACE_TXS_BATCH_SIZE,
                 "ETH_INTERNAL_TXS_BLOCK_PROCESS_LIMIT": settings.ETH_INTERNAL_TXS_BLOCK_PROCESS_LIMIT,
                 "ETH_L2_NETWORK": settings.ETH_L2_NETWORK,
                 "ETH_REORG_BLOCKS": settings.ETH_REORG_BLOCKS,
@@ -989,19 +990,29 @@ class SafeInfoView(GenericAPIView):
 
         print("views.py LOG", SafeServiceProvider().get_safe_info(address))
         try:
-            safe_info = SafeServiceProvider().get_safe_info(address)
+            safe_info = SafeLastStatus.objects.get(address=address).get_safe_info()
+            if safe_info.nonce == 0:
+                # This works for:
+                # - Not indexed Safes
+                # - Not L2 Safes on L2 networks
+                raise SafeLastStatus.DoesNotExist
             serializer = self.get_serializer(safe_info)
             print("views.py LOG", serializer)
             return Response(status=status.HTTP_200_OK, data=serializer.data)
-        except CannotGetSafeInfo:
-            return Response(
-                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                data={
-                    "code": 50,
-                    "message": "Cannot get Safe info",
-                    "arguments": [address],
-                },
-            )
+        except SafeLastStatus.DoesNotExist:
+            try:
+                safe_info = SafeServiceProvider().get_safe_info(address)
+                serializer = self.get_serializer(safe_info)
+                return Response(status=status.HTTP_200_OK, data=serializer.data)
+            except CannotGetSafeInfo:
+                return Response(
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    data={
+                        "code": 50,
+                        "message": "Cannot get Safe info from blockchain",
+                        "arguments": [address],
+                    },
+                )
 
 
 class MasterCopiesView(ListAPIView):
@@ -1019,7 +1030,7 @@ class OwnersView(GenericAPIView):
             422: "Owner address checksum not valid",
         }
     )
-    @method_decorator(cache_page(settings.CACHE_OWNERS_VIEW_SECONDS))
+    @method_decorator(cache_page(15))  # 15 seconds
     def get(self, request, address, *args, **kwargs):
         """
         Return Safes where the address provided is an owner
@@ -1034,7 +1045,7 @@ class OwnersView(GenericAPIView):
                 },
             )
 
-        safes_for_owner = SafeStatus.objects.addresses_for_owner(address)
+        safes_for_owner = SafeLastStatus.objects.addresses_for_owner(address)
         serializer = self.get_serializer(data={"safes": safes_for_owner})
         assert serializer.is_valid()
         return Response(status=status.HTTP_200_OK, data=serializer.data)

@@ -18,6 +18,7 @@ from web3 import Web3
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.ethereum_client import ParityManager
 from gnosis.safe import CannotEstimateGas, Safe, SafeOperation
+from gnosis.safe.safe import SafeInfo
 from gnosis.safe.safe_signature import SafeSignature, SafeSignatureType
 from gnosis.safe.signatures import signature_to_bytes
 from gnosis.safe.tests.safe_test_case import SafeTestCaseMixin
@@ -29,7 +30,6 @@ from safe_transaction_service.tokens.models import Token
 from safe_transaction_service.tokens.services.price_service import PriceService
 from safe_transaction_service.tokens.tests.factories import TokenFactory
 
-from ..exceptions import NodeConnectionException
 from ..helpers import DelegateSignatureHelper
 from ..models import MultisigConfirmation, MultisigTransaction, SafeContractDelegate
 from ..serializers import DelegateSerializer, TransferType
@@ -47,6 +47,7 @@ from .factories import (
     MultisigTransactionFactory,
     SafeContractDelegateFactory,
     SafeContractFactory,
+    SafeLastStatusFactory,
     SafeMasterCopyFactory,
     SafeStatusFactory,
 )
@@ -2682,8 +2683,7 @@ class TestViews(SafeTestCaseMixin, APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
 
-        safe = self.deploy_test_safe()
-        safe_address = safe.address
+        safe_address = Account.create().address
         response = self.client.get(
             reverse("v1:history:safe-info", args=(safe_address,))
         )
@@ -2693,32 +2693,103 @@ class TestViews(SafeTestCaseMixin, APITestCase):
         response = self.client.get(
             reverse("v1:history:safe-info", args=(safe_address,)), format="json"
         )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
         self.assertEqual(
             response.data,
             {
+                "code": 50,
+                "message": "Cannot get Safe info from blockchain",
+                "arguments": [safe_address],
+            },
+        )
+
+        safe_last_status = SafeLastStatusFactory(address=safe_address, nonce=0)
+        # For nonce=0, try to get info from blockchain
+        response = self.client.get(
+            reverse("v1:history:safe-info", args=(safe_address,)), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertEqual(
+            response.data,
+            {
+                "code": 50,
+                "message": "Cannot get Safe info from blockchain",
+                "arguments": [safe_address],
+            },
+        )
+
+        with mock.patch.object(SafeService, "get_safe_info") as get_safe_info_mock:
+            safe_info_mock = SafeInfo(
+                safe_address,
+                Account.create().address,
+                Account.create().address,
+                Account.create().address,
+                [Account.create().address],
+                5,
+                [Account.create().address, Account.create().address],
+                1,
+                "1.3.0",
+            )
+            get_safe_info_mock.return_value = safe_info_mock
+            response = self.client.get(
+                reverse("v1:history:safe-info", args=(safe_address,)), format="json"
+            )
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertDictEqual(
+                response.data,
+                {
+                    "address": safe_address,
+                    "nonce": safe_info_mock.nonce,
+                    "threshold": safe_info_mock.threshold,
+                    "owners": safe_info_mock.owners,
+                    "master_copy": safe_info_mock.master_copy,
+                    "modules": safe_info_mock.modules,
+                    "fallback_handler": safe_info_mock.fallback_handler,
+                    "guard": safe_info_mock.guard,
+                    "version": "1.3.0",
+                },
+            )
+
+        safe_last_status.nonce = 1
+        safe_last_status.save(update_fields=["nonce"])
+        response = self.client.get(
+            reverse("v1:history:safe-info", args=(safe_address,)), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertDictEqual(
+            response.data,
+            {
                 "address": safe_address,
-                "nonce": 0,
-                "threshold": safe.retrieve_threshold(),
-                "owners": safe.retrieve_owners(),
-                "master_copy": safe.retrieve_master_copy_address(),
-                "modules": [],
-                "fallback_handler": safe.retrieve_fallback_handler(),
+                "nonce": safe_last_status.nonce,
+                "threshold": safe_last_status.threshold,
+                "owners": safe_last_status.owners,
+                "master_copy": safe_last_status.master_copy,
+                "modules": safe_last_status.enabled_modules,
+                "fallback_handler": safe_last_status.fallback_handler,
+                "guard": safe_last_status.guard,
+                "version": "UNKNOWN",
+            },
+        )
+
+        SafeMasterCopyFactory(address=safe_last_status.master_copy, version="1.3.0")
+        response = self.client.get(
+            reverse("v1:history:safe-info", args=(safe_address,)), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertDictEqual(
+            response.data,
+            {
+                "address": safe_address,
+                "nonce": safe_last_status.nonce,
+                "threshold": safe_last_status.threshold,
+                "owners": safe_last_status.owners,
+                "master_copy": safe_last_status.master_copy,
+                "modules": safe_last_status.enabled_modules,
+                "fallback_handler": safe_last_status.fallback_handler,
                 "guard": NULL_ADDRESS,
                 "version": "1.3.0",
             },
         )
-
-        with mock.patch.object(
-            SafeService,
-            "get_safe_info",
-            side_effect=NodeConnectionException,
-            autospec=True,
-        ):
-            response = self.client.get(
-                reverse("v1:history:safe-info", args=(safe_address,)), format="json"
-            )
-            self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
 
     def test_master_copies_view(self):
         response = self.client.get(reverse("v1:history:master-copies"))
@@ -2933,21 +3004,21 @@ class TestViews(SafeTestCaseMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["safes"], [])
 
-        safe_status = SafeStatusFactory(owners=[owner_address])
+        safe_last_status = SafeLastStatusFactory(owners=[owner_address])
         response = self.client.get(
             reverse("v1:history:owners", args=(owner_address,)), format="json"
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["safes"], [safe_status.address])
+        self.assertEqual(response.data["safes"], [safe_last_status.address])
 
-        safe_status_2 = SafeStatusFactory(owners=[owner_address])
+        safe_status_2 = SafeLastStatusFactory(owners=[owner_address])
         SafeStatusFactory()  # Test that other SafeStatus don't appear
         response = self.client.get(
             reverse("v1:history:owners", args=(owner_address,)), format="json"
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertCountEqual(
-            response.data["safes"], [safe_status.address, safe_status_2.address]
+            response.data["safes"], [safe_last_status.address, safe_status_2.address]
         )
 
     def test_data_decoder_view(self):
