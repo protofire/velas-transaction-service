@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
-from functools import cache
 from logging import getLogger
 from typing import Dict, Iterator, List, Optional, Sequence, Union
 
 from django.db import transaction
 
-from eth_typing import ChecksumAddress
+from eth_typing import ChecksumAddress, HexStr
 from eth_utils import event_abi_to_log_topic
 from hexbytes import HexBytes
 from packaging.version import Version
@@ -106,7 +105,7 @@ class SafeTxProcessor(TxProcessor):
             Version("1.3.0"),  # ChainId was included
         )
 
-    def clear_cache(self, safe_address: Optional[str] = None):
+    def clear_cache(self, safe_address: Optional[ChecksumAddress] = None) -> None:
         if safe_address:
             if safe_address in self.safe_last_status_cache:
                 del self.safe_last_status_cache[safe_address]
@@ -114,7 +113,7 @@ class SafeTxProcessor(TxProcessor):
             self.safe_last_status_cache.clear()
 
     def is_failed(
-        self, ethereum_tx: EthereumTx, safe_tx_hash: Union[str, bytes]
+        self, ethereum_tx: EthereumTx, safe_tx_hash: Union[HexStr, bytes]
     ) -> bool:
         """
         Detects failure events on a Safe Multisig Tx
@@ -156,10 +155,13 @@ class SafeTxProcessor(TxProcessor):
                 return True
         return False
 
-    @cache
     def get_safe_version_from_master_copy(
         self, master_copy: ChecksumAddress
     ) -> Optional[str]:
+        """
+        :param master_copy:
+        :return: Safe version for master copy address
+        """
         return SafeMasterCopy.objects.get_version_for_address(master_copy)
 
     def get_last_safe_status_for_address(
@@ -168,10 +170,10 @@ class SafeTxProcessor(TxProcessor):
         try:
             safe_status = self.safe_last_status_cache.get(
                 address
-            ) or SafeLastStatus.objects.get(address=address)
+            ) or SafeLastStatus.objects.get_or_generate(address)
             return safe_status
         except SafeLastStatus.DoesNotExist:
-            logger.error("SafeStatus not found for address=%s", address)
+            logger.error("SafeLastStatus not found for address=%s", address)
 
     def is_version_breaking_signatures(
         self, old_safe_version: str, new_safe_version: str

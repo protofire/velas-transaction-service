@@ -18,7 +18,6 @@ from web3 import Web3
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.ethereum_client import ParityManager
 from gnosis.safe import CannotEstimateGas, Safe, SafeOperation
-from gnosis.safe.safe import SafeInfo
 from gnosis.safe.safe_signature import SafeSignature, SafeSignatureType
 from gnosis.safe.signatures import signature_to_bytes
 from gnosis.safe.tests.safe_test_case import SafeTestCaseMixin
@@ -31,9 +30,14 @@ from safe_transaction_service.tokens.services.price_service import PriceService
 from safe_transaction_service.tokens.tests.factories import TokenFactory
 
 from ..helpers import DelegateSignatureHelper
-from ..models import MultisigConfirmation, MultisigTransaction, SafeContractDelegate
-from ..serializers import DelegateSerializer, TransferType
-from ..services import BalanceService, CollectiblesService, SafeService
+from ..models import (
+    MultisigConfirmation,
+    MultisigTransaction,
+    SafeContractDelegate,
+    SafeMasterCopy,
+)
+from ..serializers import TransferType
+from ..services import BalanceService, CollectiblesService
 from ..services.balance_service import Erc20InfoWithLogo
 from ..services.collectibles_service import CollectibleWithMetadata
 from ..views import SafeMultisigTransactionListView
@@ -1776,10 +1780,8 @@ class TestViews(SafeTestCaseMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         SafeContractFactory(address=safe_address)
-        with mock.patch.object(
-            DelegateSerializer,
-            "get_safe_owners",
-            autospec=True,
+        with mock.patch(
+            "safe_transaction_service.history.serializers.get_safe_owners",
             return_value=[Account.create().address],
         ) as get_safe_owners_mock:
             response = self.client.post(url, format="json", data=data)
@@ -2718,6 +2720,41 @@ class TestViews(SafeTestCaseMixin, APITestCase):
             },
         )
 
+        # Test blockchain Safe
+        blockchain_safe = self.deploy_test_safe()
+        response = self.client.get(
+            reverse("v1:history:safe-info", args=(blockchain_safe.address,)),
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        SafeContractFactory(address=blockchain_safe.address)
+        SafeMasterCopyFactory(
+            address=blockchain_safe.retrieve_master_copy_address(), version="1.25.0"
+        )
+        response = self.client.get(
+            reverse("v1:history:safe-info", args=(blockchain_safe.address,)),
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.assertEqual(
+            response.data,
+            {
+                "address": blockchain_safe.address,
+                "nonce": 0,
+                "threshold": blockchain_safe.retrieve_threshold(),
+                "owners": blockchain_safe.retrieve_owners(),
+                "master_copy": blockchain_safe.retrieve_master_copy_address(),
+                "modules": [],
+                "fallback_handler": blockchain_safe.retrieve_fallback_handler(),
+                "guard": NULL_ADDRESS,
+                "version": "1.25.0",
+            },
+        )
+
+        # Uncomment if this method is used again on `SafeInfoView`
+        """
         with mock.patch.object(SafeService, "get_safe_info") as get_safe_info_mock:
             safe_info_mock = SafeInfo(
                 safe_address,
@@ -2767,7 +2804,7 @@ class TestViews(SafeTestCaseMixin, APITestCase):
                 "modules": safe_last_status.enabled_modules,
                 "fallback_handler": safe_last_status.fallback_handler,
                 "guard": safe_last_status.guard,
-                "version": "UNKNOWN",
+                "version": None,
             },
         )
 
@@ -2790,12 +2827,13 @@ class TestViews(SafeTestCaseMixin, APITestCase):
                 "version": "1.3.0",
             },
         )
+        """
+        SafeMasterCopy.objects.get_version_for_address.cache_clear()
 
     def test_master_copies_view(self):
         response = self.client.get(reverse("v1:history:master-copies"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        expected = []
-        self.assertEqual(response.data, expected)
+        self.assertEqual(response.data, [])
 
         deployed_block_number = 2
         last_indexed_block_number = 5
@@ -2805,7 +2843,7 @@ class TestViews(SafeTestCaseMixin, APITestCase):
         )
         response = self.client.get(reverse("v1:history:master-copies"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        expected = [
+        expected_master_copy = [
             {
                 "address": safe_master_copy.address,
                 "version": safe_master_copy.version,
@@ -2815,12 +2853,12 @@ class TestViews(SafeTestCaseMixin, APITestCase):
                 "l2": False,
             }
         ]
-        self.assertCountEqual(response.data, expected)
+        self.assertCountEqual(response.data, expected_master_copy)
 
         safe_master_copy = SafeMasterCopyFactory(l2=True)
         response = self.client.get(reverse("v1:history:master-copies"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        expected += [
+        expected_l2_master_copy = [
             {
                 "address": safe_master_copy.address,
                 "version": safe_master_copy.version,
@@ -2831,7 +2869,14 @@ class TestViews(SafeTestCaseMixin, APITestCase):
             }
         ]
 
-        self.assertCountEqual(response.data, expected)
+        self.assertCountEqual(
+            response.data, expected_master_copy + expected_l2_master_copy
+        )
+
+        with self.settings(ETH_L2_NETWORK=True):
+            response = self.client.get(reverse("v1:history:master-copies"))
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertCountEqual(response.data, expected_l2_master_copy)
 
     def test_analytics_multisig_txs_by_origin_view(self):
         response = self.client.get(
