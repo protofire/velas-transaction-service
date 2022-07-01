@@ -23,7 +23,7 @@ class EventsIndexer(EthereumIndexer):
     """
 
     IGNORE_ADDRESSES_ON_LOG_FILTER: bool = (
-        False  # If True, don't use addresses to filter logs
+        True  # If True, don't use addresses to filter logs
     )
 
     def __init__(self, *args, **kwargs):
