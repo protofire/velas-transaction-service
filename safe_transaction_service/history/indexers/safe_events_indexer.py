@@ -139,15 +139,15 @@ class SafeEventsIndexer(EventsIndexer):
             l2_contract.events.SignMsg(),
             l2_contract.events.ExecutionFailure(),
             l2_contract.events.ExecutionSuccess(),
+            # Owners
+            l2_contract.events.AddedOwner(),
+            l2_contract.events.RemovedOwner(),
+            l2_contract.events.ChangedThreshold(),
             # Modules
             l2_contract.events.EnabledModule(),
             l2_contract.events.DisabledModule(),
             l2_contract.events.ExecutionFromModuleSuccess(),
             l2_contract.events.ExecutionFromModuleFailure(),
-            # Owners
-            l2_contract.events.AddedOwner(),
-            l2_contract.events.RemovedOwner(),
-            l2_contract.events.ChangedThreshold(),
             # Changed FallbackHandler
             l2_contract.events.ChangedFallbackHandler(),
             # Changed Guard
