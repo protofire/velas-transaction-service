@@ -130,6 +130,8 @@ class SafeEventsIndexer(EventsIndexer):
         )
         old_contract = get_safe_V1_1_1_contract(self.ethereum_client.w3)
         return [
+            # Incoming Ether
+            l2_contract.events.SafeReceived(),
             l2_contract.events.SafeMultiSigTransaction(),
             l2_contract.events.SafeModuleTransaction(),
             l2_contract.events.SafeSetup(),
@@ -137,17 +139,15 @@ class SafeEventsIndexer(EventsIndexer):
             l2_contract.events.SignMsg(),
             l2_contract.events.ExecutionFailure(),
             l2_contract.events.ExecutionSuccess(),
+            # Owners
+            l2_contract.events.AddedOwner(),
+            l2_contract.events.RemovedOwner(),
+            l2_contract.events.ChangedThreshold(),
             # Modules
             l2_contract.events.EnabledModule(),
             l2_contract.events.DisabledModule(),
             l2_contract.events.ExecutionFromModuleSuccess(),
             l2_contract.events.ExecutionFromModuleFailure(),
-            # Owners
-            l2_contract.events.AddedOwner(),
-            l2_contract.events.RemovedOwner(),
-            l2_contract.events.ChangedThreshold(),
-            # Incoming Ether
-            l2_contract.events.SafeReceived(),
             # Changed FallbackHandler
             l2_contract.events.ChangedFallbackHandler(),
             # Changed Guard
