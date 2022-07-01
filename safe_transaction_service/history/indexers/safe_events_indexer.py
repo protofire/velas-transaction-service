@@ -311,6 +311,12 @@ class SafeEventsIndexer(EventsIndexer):
         elif event_name == "ChangedGuard":
             internal_tx_decoded.function_name = "setGuard"
         elif event_name == "SafeReceived":  # Received ether
+            logger.debug(
+                "Found %s for Safe %s on tx-hash=%s",
+                event_name,
+                safe_address,
+                decoded_element["transactionHash"].hex(),
+            )
             internal_tx.call_type = EthereumTxCallType.CALL.value
             internal_tx._from = args["sender"]
             internal_tx.to = safe_address

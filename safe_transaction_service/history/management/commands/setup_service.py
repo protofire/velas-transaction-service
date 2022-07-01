@@ -216,7 +216,7 @@ MASTER_COPIES: Dict[EthereumNetwork, List[Tuple[str, int, str]]] = {
     ],
     EthereumNetwork.VELAS_MAINNET: [
         ("0xfb1bffC9d739B8D520DaF37dF666da4C687191EA", 27572492, "1.3.0+L2"),
-        ("0x69f4D1788e39c87893C980c06EdF4b7f686e2938", 27572642, "1.3.0"),
+        #("0x69f4D1788e39c87893C980c06EdF4b7f686e2938", 27572642, "1.3.0"),
     ],
     EthereumNetwork.FUSE_MAINNET: [
         ("0x3E5c63644E683549055b9Be8653de26E0B4CD36E", 12_725_078, "1.3.0+L2"),
