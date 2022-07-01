@@ -91,15 +91,6 @@ class EventsIndexer(EthereumIndexer):
             addresses[:20],
             filter_topics[:20],
         )
-        logger.debug(
-            "%s: IGNORE_ADDRESSES_ON_LOG_FILTER %s",
-            self.__class__.__name__,
-            self.IGNORE_ADDRESSES_ON_LOG_FILTER,
-        )
-        logger.debug(
-            "%s: Parameters for get_ethLogs: %s",
-            parameters,
-        )
         return self.ethereum_client.slow_w3.eth.get_logs(parameters)
 
     def _find_elements_using_topics(
