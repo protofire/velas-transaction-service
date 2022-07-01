@@ -23,7 +23,7 @@ class EventsIndexer(EthereumIndexer):
     """
 
     IGNORE_ADDRESSES_ON_LOG_FILTER: bool = (
-        True  # If True, don't use addresses to filter logs
+        False  # If True, don't use addresses to filter logs
     )
 
     def __init__(self, *args, **kwargs):
@@ -90,6 +90,15 @@ class EventsIndexer(EthereumIndexer):
             to_block_number,
             addresses[:20],
             filter_topics[:20],
+        )
+        logger.debug(
+            "%s: IGNORE_ADDRESSES_ON_LOG_FILTER %s",
+            self.__class__.__name__,
+            self.IGNORE_ADDRESSES_ON_LOG_FILTER,
+        )
+        logger.debug(
+            "%s: Parameters for get_ethLogs: %s",
+            parameters,
         )
         return self.ethereum_client.slow_w3.eth.get_logs(parameters)
 
