@@ -83,14 +83,6 @@ class EventsIndexer(EthereumIndexer):
         if not self.IGNORE_ADDRESSES_ON_LOG_FILTER:
             parameters["address"] = addresses
 
-        logger.debug(
-            "%s: Do node query for events from block-number=%d to block-number=%d for addresses: %s for topics: %s",
-            self.__class__.__name__,
-            from_block_number,
-            to_block_number,
-            addresses[:20],
-            filter_topics[:20],
-        )
         return self.ethereum_client.slow_w3.eth.get_logs(parameters)
 
     def _find_elements_using_topics(
