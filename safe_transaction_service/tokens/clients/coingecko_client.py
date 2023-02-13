@@ -36,7 +36,7 @@ class CoingeckoClient:
             self.asset_platform = "optimistic-ethereum"
         elif network == EthereumNetwork.GNOSIS:
             self.asset_platform = "xdai"
-        elif network == EthereumNetwork.VELAS_MAINNET:
+        elif network == EthereumNetwork.VELAS_EVM_MAINNET:
             self.asset_platform = "velas"
         elif network == EthereumNetwork.FUSE_MAINNET:
             self.asset_platform = "fuse"
@@ -61,6 +61,7 @@ class CoingeckoClient:
             EthereumNetwork.FUSE_MAINNET,
             EthereumNetwork.KCC_MAINNET,
             EthereumNetwork.METIS_ANDROMEDA_MAINNET,
+            EthereumNetwork.VELAS_EVM_MAINNET,
         )
 
     def _do_request(self, url: str) -> Dict[str, Any]:
