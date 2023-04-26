@@ -226,7 +226,7 @@ class PriceService:
             return self.get_ewt_usd_price()
         elif self.ethereum_network in (EthereumNetwork.POLYGON, EthereumNetwork.MUMBAI):
             return self.get_matic_usd_price()
-        elif self.ethereum_network in (EthereumNetwork.VELAS_EVM_MAINNET, EthereumNetwork.ETHERLITE_CHAIN):
+        elif self.ethereum_network in (EthereumNetwork.VELAS_EVM_MAINNET, EthereumNetwork.VELAS_EVM_TESTNET):
             return self.get_velas_usd_price()
         elif self.ethereum_network == EthereumNetwork.BINANCE_SMART_CHAIN_MAINNET:
             return self.get_binance_usd_price()
