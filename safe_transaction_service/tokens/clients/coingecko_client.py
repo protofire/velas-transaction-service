@@ -33,6 +33,7 @@ class CoingeckoClient(BaseHTTPClient):
         EthereumNetwork.POLYGON: "polygon-pos",
         EthereumNetwork.POLYGON_ZKEVM: "polygon-zkevm",
         EthereumNetwork.CELO_MAINNET: "celo",
+        EthereumNetwork.VELAS_EVM_MAINNET: "velas",
     }
     base_url = "https://api.coingecko.com/"
 
@@ -138,6 +139,8 @@ class CoingeckoClient(BaseHTTPClient):
     def get_gather_usd_price(self) -> float:
         return self.get_price("gather")
 
+    def get_velas_usd_price(self) -> float:
+        return self.get_price("velas")
     def get_fuse_usd_price(self) -> float:
         return self.get_price("fuse-network-token")
 
